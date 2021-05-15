@@ -6,16 +6,12 @@ from postgresql_to_pd import postgresql_to_pd
 import pandas as pd
 from adtk.data import validate_series
 import datetime
-import math
 
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
 
 symptoms = ["temperature", "bloodOxygen", "heartRate", "cough"]
-
-conn = connect()
-
 
 @app.route('/isOutlier', methods=['POST'])
 def is_outlier():
@@ -34,6 +30,7 @@ def is_outlier():
     select_query_1_hour = f"select timestamp,\"{symptom}\" from symptom where {symptom} is not null and \"userId\" = '{int(uid)}' and timestamp > '{hour_before}' order by timestamp desc"
     #select_query = f"select timestamp,\"{symptom}\" from symptom where {symptom} is not null and \"userId\" = '{int(uid)}' order by timestamp desc"
     column_names = ["timestamp", symptom]
+    conn = connect()
     df = postgresql_to_pd(conn, select_query_1_hour, column_names)
     print(df)
     if len(df) == 0:
@@ -48,6 +45,7 @@ def is_outlier():
     validate_series(df)
     outlier_detector = OutlierDetector(LocalOutlierFactor(contamination=0.05,n_neighbors=int(round(len(df)/2))))
     anomalies = outlier_detector.fit_detect(df)
+    conn.close()
     return flask.jsonify({'outlier': str(anomalies.iat[-1])}), 200
 
 
